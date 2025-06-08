@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login & Manage Add-on</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f0f0;
+      padding: 20px;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+    .container {
+      background: white;
+      padding: 20px 30px;
+      border-radius: 8px;
+      box-shadow: 0 0 12px rgba(0,0,0,0.1);
+      width: 450px;
+    }
+    input[type="text"], input[type="password"], input[type="file"] {
+      width: 100%;
+      padding: 8px;
+      margin: 8px 0 15px;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 10px;
+      background: #007BFF;
+      border: none;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 4px;
+      margin-right: 10px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .message {
+      font-weight: bold;
+      margin-bottom: 15px;
+    }
+    .error {
+      color: red;
+    }
+    .success {
+      color: green;
+    }
+    ul#addon-list {
+      list-style: none;
+      padding-left: 0;
+      max-height: 260px; /* tinggi untuk sekitar 5 item */
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin-top: 10px;
+      display: none; /* disembunyikan default */
+    }
+    ul#addon-list li {
+      padding: 8px;
+      height: 50px; /* supaya tinggi item konsisten */
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    ul#addon-list li:last-child {
+      border-bottom: none;
+    }
+    ul#addon-list li button {
+      padding: 4px 8px;
+      font-size: 14px;
+      margin-left: 5px;
+      background: #28a745;
+      border: none;
+      border-radius: 4px;
+      color: white;
+      cursor: pointer;
+    }
+    ul#addon-list li button.delete {
+      background: #dc3545;
+    }
+    ul#addon-list li button:hover {
+      opacity: 0.9;
+    }
+    #toggle-list-btn {
+      margin-top: 10px;
+      width: 100%;
+      background: #17a2b8;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container" id="login-container">
+    <h2>Login</h2>
+    <input type="text" id="username" placeholder="Username" />
+    <input type="password" id="password" placeholder="Password" />
+    <button onclick="login()">Masuk</button>
+    <div id="message" class="message"></div>
+  </div>
+
+  <div class="container" id="addon-container" style="display:none;">
+    <h2>Upload Add-on (.zip, .mcpack, .mcaddon)</h2>
+    <input type="file" id="file-input" accept=".zip,.mcpack,.mcaddon" />
+    <button onclick="uploadAddon()">Upload</button>
+
+    <button id="toggle-list-btn" onclick="toggleAddonList()">Add-ons by Kyyylmc</button>
+    <ul id="addon-list"></ul>
+
+    <button onclick="logout()" style="background:#6c757d;margin-top:10px;">Logout</button>
+  </div>
+
+<script>
+  const USERNAME = 'Akil';
+  const PASSWORD = 'akil123';
+
+  function login() {
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    const messageDiv = document.getElementById('message');
+
+    if(username === USERNAME && password === PASSWORD) {
+      messageDiv.textContent = 'Login berhasil! Selamat datang, ' + username + '.';
+      messageDiv.className = 'message success';
+
+      document.getElementById('login-container').style.display = 'none';
+      document.getElementById('addon-container').style.display = 'block';
+
+      renderAddonList();
+    } else {
+      messageDiv.textContent = 'Username atau password salah.';
+      messageDiv.className = 'message error';
+    }
+  }
+
+  // Toggle show/hide list add-on
+  function toggleAddonList() {
+    const list = document.getElementById('addon-list');
+    if(list.style.display === 'none' || list.style.display === '') {
+      list.style.display = 'block';
+      document.getElementById('toggle-list-btn').textContent = 'Sembunyikannnn Add-ons';
+    } else {
+      list.style.display = 'none';
+      document.getElementById('toggle-list-btn').textContent = 'Add-ons by Kyyylmc';
+    }
+  }
+
+  // Fungsi upload file ZIP, mcpack, mcaddon dan simpan ke localStorage dalam Base64
+  function uploadAddon() {
+    const fileInput = document.getElementById('file-input');
+    const file = fileInput.files[0];
+    if (!file) {
+      alert('Pilih file dulu.');
+      return;
+    }
+
+    const allowedExtensions = ['zip', 'mcpack', 'mcaddon'];
+    const fileExt = file.name.split('.').pop().toLowerCase();
+
+    if (!allowedExtensions.includes(fileExt)) {
+      alert('Hanya file dengan ekstensi: ' + allowedExtensions.join(', ') + ' yang diperbolehkan.');
+      return;
+    }
+
+    // Check if max 50 add-ons reached
+    const addonCount = getAddonCount();
+    if(addonCount >= 50) {
+      alert('Maksimal 50 add-on yang bisa disimpan. Hapus beberapa add-on dulu.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const base64 = e.target.result.split(',')[1]; // ambil Base64
+
+      try {
+        localStorage.setItem('addon_' + file.name, base64);
+        alert('Add-on "' + file.name + '" berhasil di-upload dan disimpan.');
+        fileInput.value = ''; // reset input
+        renderAddonList();
+      } catch(err) {
+        alert('Gagal menyimpan add-on: ' + err.message);
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // Hitung jumlah add-on tersimpan
+  function getAddonCount() {
+    let count = 0;
+    for(let i = 0; i < localStorage.length; i++) {
+      if(localStorage.key(i).startsWith('addon_')) count++;
+    }
+    return count;
+  }
+
+  // Render daftar add-on yang tersimpan di localStorage
+  function renderAddonList() {
+    const list = document.getElementById('addon-list');
+    list.innerHTML = '';
+
+    let found = false;
+    for(let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if(key.startsWith('addon_')) {
+        found = true;
+        const filename = key.substring(6);
+        const li = document.createElement('li');
+        li.textContent = filename;
+
+        // tombol download
+        const btnDownload = document.createElement('button');
+        btnDownload.textContent = 'Download';
+        btnDownload.onclick = () => downloadAddon(filename);
+
+        // tombol hapus
+        const btnDelete = document.createElement('button');
+        btnDelete.textContent = 'Hapus';
+        btnDelete.className = 'delete';
+        btnDelete.onclick = () => deleteAddon(filename);
+
+        const btnWrapper = document.createElement('div');
+        btnWrapper.style.display = 'flex';
+        btnWrapper.appendChild(btnDownload);
+        btnWrapper.appendChild(btnDelete);
+
+        li.textContent = filename;
+        li.appendChild(btnWrapper);
+
+        list.appendChild(li);
+      }
+    }
+
+    if(!found) {
+      const li = document.createElement('li');
+      li.textContent = 'Belum ada add-on yang di-upload.';
+      list.appendChild(li);
+    }
+  }
+
+  // Fungsi download file dari localStorage
+  function downloadAddon(filename) {
+    const key = 'addon_' + filename;
+    const base64 = localStorage.getItem(key);
+    if(!base64) {
+      alert('File tidak ditemukan.');
+      return;
+    }
+
+    const link = document.createElement('a');
+    link.href = 'data:application/octet-stream;base64,' + base64;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  // Hapus add-on dari localStorage
+  function deleteAddon(filename) {
+    if(confirm('Yakin ingin menghapus add-on "' + filename + '"?')) {
+      localStorage.removeItem('addon_' + filename);
+      renderAddonList();
+    }
+  }
+
+  // Logout
+  function logout() {
+    if(confirm('Logout sekarang?')) {
+      document.getElementById('addon-container').style.display = 'none';
+      document.getElementById('login-container').style.display = 'block';
+      document.getElementById('message').textContent = '';
+      document.getElementById('username').value = '';
+      document.getElementById('password').value = '';
+    }
+  }
+</script>
+
+</body>
+</html>
